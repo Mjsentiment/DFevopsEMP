@@ -1,0 +1,36 @@
+---
+- name: Deploy AddressBook App from Artifact Registry
+  hosts: all
+  become: yes
+
+  vars:
+    project_id: "your-gcp-project-id"
+    region: "us-central1"
+    image_name: "addressbook"
+    container_name: "addressbook-app"
+
+  tasks:
+    - name: Authenticate Docker with gcloud (requires gcloud SDK installed)
+      shell: |
+        gcloud auth configure-docker {{ region }}-docker.pkg.dev -q
+      args:
+        executable: /bin/bash
+
+    - name: Pull latest Docker image from Artifact Registry
+      docker_image:
+        name: "{{ region }}-docker.pkg.dev/{{ project_id }}/devops/{{ image_name }}"
+        source: pull
+
+    - name: Stop existing container if running
+      docker_container:
+        name: "{{ container_name }}"
+        state: absent
+
+    - name: Run AddressBook container
+      docker_container:
+        name: "{{ container_name }}"
+        image: "{{ region }}-docker.pkg.dev/{{ project_id }}/devops/{{ image_name }}:latest"
+        state: started
+        restart_policy: always
+        published_ports:
+          - "8080:8080"
